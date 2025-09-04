@@ -1,0 +1,128 @@
+#!/bin/bash
+
+# Script to "open" the Dify development environment
+# This script sets up and starts the complete development environment
+
+set -e
+
+echo "🚀 Opening Dify Development Environment..."
+echo ""
+
+# Check if we're in the right directory
+if [ ! -f "Makefile" ] || [ ! -d "api" ] || [ ! -d "web" ]; then
+    echo "❌ Error: Please run this script from the Dify project root directory"
+    exit 1
+fi
+
+# Check dependencies and provide instructions
+echo "🔍 Checking dependencies..."
+
+# Check for pnpm (now available)
+if ! command -v pnpm &> /dev/null; then
+    echo "❌ pnpm not found. Installing..."
+    npm install -g pnpm
+fi
+
+echo "✅ pnpm is available"
+
+# For uv, let's provide instructions since curl is blocked
+if ! command -v uv &> /dev/null; then
+    echo "⚠️  uv (Python package manager) not found."
+    echo "Please install uv manually by following these steps:"
+    echo "1. Visit: https://github.com/astral-sh/uv"
+    echo "2. Follow installation instructions for your system"
+    echo ""
+    echo "For now, we'll proceed with manual setup..."
+    
+    # Manual setup steps
+    echo "📦 Setting up environment manually..."
+    
+    # Step 1: Setup Docker middleware
+    echo "🐳 Setting up Docker middleware..."
+    cp -n docker/middleware.env.example docker/middleware.env 2>/dev/null || echo "Docker middleware.env already exists"
+    cd docker && docker compose -f docker-compose.middleware.yaml --env-file middleware.env -p dify-middlewares-dev up -d
+    cd ..
+    echo "✅ Docker middleware started"
+    
+    # Step 2: Setup web environment
+    echo "🌐 Setting up web environment..."
+    cp -n web/.env.example web/.env 2>/dev/null || echo "Web .env already exists"
+    cd web && pnpm install
+    echo "✅ Web dependencies installed"
+    cd ..
+    
+    # Step 3: Setup API environment (manual)
+    echo "🔧 Setting up API environment..."
+    cp -n api/.env.example api/.env 2>/dev/null || echo "API .env already exists"
+    echo "⚠️  For API setup, you'll need to manually install dependencies with uv"
+    echo "   Run: uv sync --dev (after installing uv)"
+    echo "   Then: uv run flask db upgrade"
+    
+else
+    echo "✅ uv is available"
+    # Use the existing Makefile setup
+    make dev-setup
+fi
+
+echo ""
+echo "✅ Development environment setup complete!"
+echo ""
+
+# Show how to start the services
+echo "🎯 To start the services, run these commands in separate terminals:"
+echo ""
+echo "1. Start API server (after uv setup):"
+echo "   ./dev/start-api"
+echo ""
+echo "2. Start Celery worker (after uv setup):"
+echo "   ./dev/start-worker"
+echo ""
+echo "3. Start web development server:"
+echo "   cd web && pnpm dev"
+echo ""
+echo "4. View the application:"
+echo "   - Frontend: http://localhost:3000"
+echo "   - API: http://localhost:5001"
+echo ""
+
+# Optional: Start web dev server automatically if requested
+if [ "$1" = "--start-web" ]; then
+    echo "🌐 Starting web development server..."
+    cd web && pnpm dev &
+    WEB_PID=$!
+    echo "Web dev server started with PID: $WEB_PID"
+    echo "Access at: http://localhost:3000"
+    echo "To stop: kill $WEB_PID"
+fi
+
+echo "🌐 The development environment is now ready to be opened!"
+echo "📚 For more information, see README.md and CLAUDE.md"
+
+echo ""
+echo "✅ Development environment setup complete!"
+echo ""
+
+# Step 2: Show how to start the services
+echo "🎯 To start the services, run these commands in separate terminals:"
+echo ""
+echo "1. Start API server:"
+echo "   ./dev/start-api"
+echo ""
+echo "2. Start Celery worker:"
+echo "   ./dev/start-worker"
+echo ""
+echo "3. Start web development server:"
+echo "   cd web && pnpm dev"
+echo ""
+
+# Optional: Start API automatically if requested
+if [ "$1" = "--start-api" ]; then
+    echo "🔧 Starting API server..."
+    ./dev/start-api &
+    API_PID=$!
+    echo "API server started with PID: $API_PID"
+    echo "To stop: kill $API_PID"
+fi
+
+echo "🌐 The development environment is now ready!"
+echo "📚 For more information, see README.md and CLAUDE.md"
